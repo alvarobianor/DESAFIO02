@@ -1,4 +1,10 @@
-import { createContext, ReactNode, useContext, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useState,
+  useEffect,
+} from "react";
 import { toast } from "react-toastify";
 import { api } from "../services/api";
 import { Product, Stock } from "../types";
@@ -32,11 +38,58 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
     return [];
   });
 
+  const [stock, setStock] = useState<Stock[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    async function loadStock() {
+      const { data } = await api.get("/stock");
+
+      setStock(data);
+    }
+
+    async function loadProducts() {
+      const { data } = await api.get("/products");
+
+      setProducts(data);
+    }
+
+    loadStock();
+    loadProducts();
+  }, []);
+
+  const findProduct = (productId: number): Product => {
+    return products.filter((product: Product) => product.id === productId)[0];
+  };
+
+  const findStock = (productId: number): Stock => {
+    return stock.filter((stock: Stock) => stock.id === productId)[0];
+  };
+
   const addProduct = async (productId: number) => {
     try {
-      // TODO
+      const idExistentProduct = cart.findIndex(
+        (product: Product) => product.id === productId
+      );
+
+      if (idExistentProduct > -1) {
+        const cartAux = cart;
+
+        if (cart[idExistentProduct].amount < findStock(productId)?.amount) {
+          cart[idExistentProduct].amount += 1;
+          setCart([...cartAux]);
+          localStorage.setItem("@RocketShoes:cart", JSON.stringify(cart));
+        } else {
+          toast.error("Quantidade solicitada fora de estoque");
+        }
+      } else {
+        const newProduct = findProduct(productId);
+        newProduct.amount = 1;
+        setCart([...cart, newProduct]);
+        localStorage.setItem("@RocketShoes:cart", JSON.stringify(cart));
+      }
     } catch {
-      // TODO
+      toast.error("Erro na adição do produto");
     }
   };
 
